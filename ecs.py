@@ -1,3 +1,4 @@
+import copy
 from typing import Any, Callable, Generator, Self, Type
 
 
@@ -38,8 +39,21 @@ class Entity(object):
         self._entities.append(entity)
         return self
 
+    def extend(self, *entities: Self) -> Self:
+        self._entities.extend(entities)
+        return self
+
     def add(self, component: Component) -> Self:
         self._components[component.__class__.__name__.lower()] = component
+        return self
+
+    def update(self, *components: Component) -> Self:
+        self._components.update(
+            {
+                component.__class__.__name__.lower(): component
+                for component in components
+            }
+        )
         return self
 
     def has(self, component: Type[Component]) -> bool:
@@ -65,6 +79,17 @@ class Entity(object):
 
     def __repr__(self) -> str:
         return f"Entity({self.id})"
+
+    def __copy__(self):
+        return Entity(self.id)
+
+    def __deepcopy__(self, memo):
+        E = Entity(self.id)
+        for component in self._components.values():
+            E.add(copy.copy(component))
+        for entity in self._entities:
+            E.append(copy.deepcopy(entity))
+        return E
 
 
 class Criteria(object):
