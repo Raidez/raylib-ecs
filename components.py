@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from pyray import WHITE, Rectangle, Texture, Vector2, Color
+
+from pyray import WHITE, Color, Rectangle, Texture, Vector2
 
 from ecs import Component
 
