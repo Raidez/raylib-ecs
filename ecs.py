@@ -69,6 +69,13 @@ class Entity(object):
     def __contains__(self, component: Type[Component]) -> bool:
         return component.__name__.lower() in self._components
 
+    def __iter__(self) -> Generator[Self, None, None]:
+        yield from self._entities
+
+    def __len__(self) -> int:
+        return len(self._entities)
+
+    # for debugging
     def __str__(self) -> str:
         s = f"Entity({self.id})"
         if self._components:
@@ -80,6 +87,7 @@ class Entity(object):
     def __repr__(self) -> str:
         return f"Entity({self.id})"
 
+    # copy and deepcopy
     def __copy__(self):
         return Entity(self.id)
 
@@ -240,6 +248,8 @@ class Query(object):
 
     def get(self, *criteria_list: Criteria) -> Entity | None:
         for entity in self._context._entities:
+            if len(entity):
+                return Query(entity).get(*criteria_list)
             if Query.check(entity, *criteria_list):
                 return entity
 
@@ -247,6 +257,8 @@ class Query(object):
         for entity in self._context._entities:
             if Query.check(entity, *criteria_list):
                 yield entity
+            if len(entity):
+                yield from Query(entity).filter(*criteria_list)
 
     def call(self, fn: Callable, *criteria_list: Criteria) -> Callable:
         def new_fn(*args, **kwargs):
@@ -284,6 +296,12 @@ if __name__ == "__main__":
         texture: str
         scale: float = 1.0
         rotation: float = 0.0
+
+    @dataclass
+    class Item(Component):
+        type: str = "coin"
+        quantity: int = 1
+        rarity: int = 1
 
     ############################################################################
 
@@ -339,3 +357,29 @@ if __name__ == "__main__":
     # test 8: use syntax sugar for criteria
     assert Query.check(hero, SugarCriteria(has=Position, id="hero", position__x=60))
     assert Query.check(hero, SugarCriteria(Position(x=60, y=20)))
+
+    # test 9: check sub-elements order
+    chest = Entity(
+        "chest",
+        Entity("gold", Item("coin", 50)),
+        Entity("diamond", Item("gem", 10, 5)),
+        Entity("key", Item("key", 1)),
+        Entity("book", Item("book", 1)),
+        Entity(
+            "sack",
+            Item("sack", 1, 2),
+            Entity("sugar", Item("food", 1, 3)),
+            Entity("milk", Item("food", 1, 4)),
+            Entity("meat", Item("food", 1, 5)),
+            Entity(
+                "bread",
+                Item("food", 1, 6),
+                Entity("gold", Item("coin", 1)),  # a coin hidden in bread
+            ),
+        ),
+    )
+    world.append(chest)
+
+    order = ["gold", "diamond", "key", "book", "sack", "sugar", "milk", "meat", "bread", "gold"]
+    for i, found in enumerate(query.filter(SugarCriteria(has=Item))):
+        assert order[i] == found.id
