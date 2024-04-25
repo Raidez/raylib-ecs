@@ -16,6 +16,7 @@ class Sprite(Component):
     texture: Texture
     tint_color: Color = WHITE
     clip: Rectangle = None
+    z_index: int = 0
 
     centered: bool = False
     offset: Vector2 = Vector2(0.0, 0.0)

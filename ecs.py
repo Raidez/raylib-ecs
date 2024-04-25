@@ -361,20 +361,20 @@ if __name__ == "__main__":
     # test 9: check sub-elements order
     chest = Entity(
         "chest",
-        Entity("gold", Item("coin", 50)),
+        Entity("gold", Item("coin", 50, 1)),
         Entity("diamond", Item("gem", 10, 5)),
-        Entity("key", Item("key", 1)),
-        Entity("book", Item("book", 1)),
+        Entity("key", Item("key", 1, 2)),
+        Entity("book", Item("book", 1, 3)),
         Entity(
             "sack",
             Item("sack", 1, 2),
-            Entity("sugar", Item("food", 1, 3)),
-            Entity("milk", Item("food", 1, 4)),
-            Entity("meat", Item("food", 1, 5)),
+            Entity("sugar", Item("food", 3, 1)),
+            Entity("milk", Item("food", 2, 1)),
+            Entity("meat", Item("food", 5, 1)),
             Entity(
                 "bread",
-                Item("food", 1, 6),
-                Entity("gold", Item("coin", 1)),  # a coin hidden in bread
+                Item("food", 1, 1),
+                Entity("gold", Item("coin", 20, 1)),
             ),
         ),
     )
@@ -382,4 +382,11 @@ if __name__ == "__main__":
 
     order = ["gold", "diamond", "key", "book", "sack", "sugar", "milk", "meat", "bread", "gold"]
     for i, found in enumerate(query.filter(SugarCriteria(has=Item))):
+        assert order[i] == found.id
+    
+    # test 9: check sub-elements forced order (rarity and quantity)
+    order = ["diamond", "book", "key", "sack", "gold", "gold", "meat", "sugar", "milk", "bread"]
+    entity_list = query.filter(SugarCriteria(has=Item))
+    entity_list = sorted(entity_list, key=lambda e: (e.get(Item).rarity, e.get(Item).quantity), reverse=True) # type: ignore
+    for i, found in enumerate(entity_list):
         assert order[i] == found.id
