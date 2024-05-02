@@ -1,4 +1,6 @@
 import copy
+import warnings
+from abc import ABC, abstractmethod
 from typing import Any, Callable, Generator, Iterable, Self, Type
 
 
@@ -10,7 +12,26 @@ class Component(object):
     ...
 
 
-class Entity(object):
+class IEntity(ABC):
+    @property
+    @abstractmethod
+    def id(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def update(self, *components: Component) -> Self:
+        raise NotImplementedError
+
+    @abstractmethod
+    def has(self, component: Type[Component]) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get(self, component: Type[Component]) -> Component:
+        raise NotImplementedError
+
+
+class Entity(IEntity):
     """
     Represents an entity in the ECS system.
 
@@ -23,8 +44,8 @@ class Entity(object):
         - is_active (bool): Flag to indicate if the entity is active.
     """
 
-    def __init__(self, id="", *args: Component | Self):
-        self.id = id
+    def __init__(self, id: str, *args: Component | Self):
+        self._id = id
         self.is_active = True
         self._entities = []
         self._components = {}
@@ -47,6 +68,10 @@ class Entity(object):
         self._components[component.__class__.__name__.lower()] = component
         return self
 
+    @property
+    def id(self):
+        return self._id
+
     def update(self, *components: Component) -> Self:
         self._components.update(
             {
@@ -63,7 +88,7 @@ class Entity(object):
         return self._components[component.__name__.lower()]
 
     # some syntax sugar
-    def __getattr__(self, name) -> Any:
+    def __getattr__(self, name: str) -> Any:
         return self._components[name]
 
     def __contains__(self, component: Type[Component]) -> bool:
@@ -105,6 +130,45 @@ class Entity(object):
         for entity in self._entities:
             E.append(copy.deepcopy(entity))
         return E
+
+
+class EntityProxy(IEntity):
+    def __init__(self, entity: Entity, *components: type[Component]):
+        self._entity = entity
+        self._components = components
+        if not len(components):
+            self._components = tuple(type(c) for c in entity._components.values())
+
+    @property
+    def id(self):
+        return self._entity.id
+
+    def _check_component(self, component: Component) -> bool:
+        return type(component) in self._components
+
+    def _check_component_type(self, component_type: Type[Component]) -> bool:
+        return component_type in self._components
+
+    def update(self, *components: Component) -> Self:
+        if not all(self._check_component(component) for component in components):
+            warnings.warn("Try to reach a component out of bounds")
+            return self
+
+        self._entity.update(*components)
+        return self
+
+    def has(self, component: Type[Component]) -> bool:
+        if not self._check_component_type(component):
+            warnings.warn("Try to reach a component out of bounds")
+            return False
+
+        return self._entity.has(component)
+
+    def get(self, component: Type[Component]) -> Component:
+        if not self._check_component_type(component):
+            raise ValueError("Try to reach a component out of bounds")
+
+        return self._entity.get(component)
 
 
 class Criteria(object):
