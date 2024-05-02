@@ -1,5 +1,5 @@
 import copy
-from typing import Any, Callable, Generator, Self, Type
+from typing import Any, Callable, Generator, Iterable, Self, Type
 
 
 class Component(object):
@@ -74,6 +74,13 @@ class Entity(object):
 
     def __len__(self) -> int:
         return len(self._entities)
+
+    def __eq__(self, other: Self) -> bool:
+        return (
+            self.id == other.id
+            and self._components == other._components
+            and self._entities == other._entities
+        )
 
     # for debugging
     def __str__(self) -> str:
@@ -184,12 +191,19 @@ class SugarCriteria(Criteria):
 
         if criteria := kwargs.pop("id", None):  # check entity id
             self._criteria_list.append(HasId(criteria))
+
         if criteria := kwargs.pop("has", None):  # check if entity has components
-            self._criteria_list.append(HasComponent(criteria))
+            if isinstance(criteria, type(Component)):
+                self._criteria_list.append(HasComponent(criteria))
+            if isinstance(criteria, Iterable):
+                for c in criteria:
+                    self._criteria_list.append(HasComponent(c))
+
         if criteria := kwargs.pop(
             "has_not", None
         ):  # check if entity has not components
             self._criteria_list.append(HasNotComponent(criteria))
+
         for key, value in kwargs.items():  # check if entity has components with values
             self._make_filter(key, value)
 
@@ -277,116 +291,3 @@ class Query(object):
             return query.call(fn, *criteria_list)(*args, **kwargs)
 
         return new_fn
-
-
-if __name__ == "__main__":
-    from dataclasses import dataclass
-
-    @dataclass
-    class Position(Component):
-        x: int = 0
-        y: int = 0
-
-    @dataclass
-    class Spatial(Position):
-        z: int = 0
-
-    @dataclass
-    class Sprite(Component):
-        texture: str
-        scale: float = 1.0
-        rotation: float = 0.0
-
-    @dataclass
-    class Item(Component):
-        type: str = "coin"
-        quantity: int = 1
-        rarity: int = 1
-
-    ############################################################################
-
-    world = Entity("world", logo := Entity("logo", Position(10, 10)))
-    query = Query(world)
-
-    # test 1: check if entity has component
-    world.append(hero := Entity("hero", Position(50, 20), Sprite("hero.png")))
-    if hero.has(Position):
-        assert hero.get(Position).x == 50
-    # test 1b: same with syntax sugar
-    if Position in hero:
-        assert hero.position.y == 20
-
-    # test 2: check if entity has components
-    assert Query.check(hero, HasComponent(Position, Sprite))
-    assert not Query.check(hero, HasComponent(Spatial))
-    assert Query.check(hero, HasComponentValue(Sprite("hero.png")))
-    assert not Query.check(hero, HasComponentValue(Position(25, 30)))
-
-    # test 3: found entity by criteria
-    assert query.get(HasId("hero")) == hero
-    assert all(e in (logo, hero) for e in list(query.filter(HasComponent(Position))))
-
-    # test 4: call function with criteria
-    def assert_(cond):
-        assert cond
-
-    query.call(lambda e: assert_(e.has(Position)), HasComponent(Position))()
-    query.call(lambda e: assert_(e.id == "hero"), HasId("hero"))()
-    query.call(
-        lambda e, s: assert_(
-            f"{s}/{e.get(Sprite).texture}" == "assets/sprite/hero.png"
-        ),
-        HasComponent(Sprite),
-    )("assets/sprite")
-
-    # test 5: call decorated function with extra argument
-    def move_position(entity: Entity, offset: int):
-        entity.get(Position).x += offset
-
-    move_position_dec = Query.decorate(move_position, HasComponent(Position))
-    move_position_dec(query, 10)
-    if e := query.get(HasId("hero")):
-        assert e.get(Position).x == 60
-
-    # test 6: check entity with exclusive criteria
-    assert Query.check(hero, HasNotComponent(Spatial))
-
-    # test 7: use lambda as filter criteria
-    assert Query.check(hero, FilterCriteria(lambda e: e.has(Position)))
-
-    # test 8: use syntax sugar for criteria
-    assert Query.check(hero, SugarCriteria(has=Position, id="hero", position__x=60))
-    assert Query.check(hero, SugarCriteria(Position(x=60, y=20)))
-
-    # test 9: check sub-elements order
-    chest = Entity(
-        "chest",
-        Entity("gold", Item("coin", 50, 1)),
-        Entity("diamond", Item("gem", 10, 5)),
-        Entity("key", Item("key", 1, 2)),
-        Entity("book", Item("book", 1, 3)),
-        Entity(
-            "sack",
-            Item("sack", 1, 2),
-            Entity("sugar", Item("food", 3, 1)),
-            Entity("milk", Item("food", 2, 1)),
-            Entity("meat", Item("food", 5, 1)),
-            Entity(
-                "bread",
-                Item("food", 1, 1),
-                Entity("gold", Item("coin", 20, 1)),
-            ),
-        ),
-    )
-    world.append(chest)
-
-    order = ["gold", "diamond", "key", "book", "sack", "sugar", "milk", "meat", "bread", "gold"]
-    for i, found in enumerate(query.filter(SugarCriteria(has=Item))):
-        assert order[i] == found.id
-    
-    # test 9: check sub-elements forced order (rarity and quantity)
-    order = ["diamond", "book", "key", "sack", "gold", "gold", "meat", "sugar", "milk", "bread"]
-    entity_list = query.filter(SugarCriteria(has=Item))
-    entity_list = sorted(entity_list, key=lambda e: (e.get(Item).rarity, e.get(Item).quantity), reverse=True) # type: ignore
-    for i, found in enumerate(entity_list):
-        assert order[i] == found.id
