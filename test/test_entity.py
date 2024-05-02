@@ -1,5 +1,6 @@
 import copy
 from test import *
+from ecs import EntityProxy
 
 
 def test_basics(entity_hero):

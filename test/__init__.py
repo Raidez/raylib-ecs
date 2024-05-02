@@ -1,7 +1,7 @@
 import pytest
 from dataclasses import dataclass
 
-from ecs import IEntity, Entity, EntityProxy, Component, Query
+from ecs import Entity, Component, Query
 
 
 @dataclass

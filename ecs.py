@@ -338,10 +338,28 @@ class Query(object):
             if len(entity):
                 yield from Query(entity).filter(*criteria_list)
 
-    def call(self, fn: Callable, *criteria_list: Criteria) -> Callable:
+    def call(self, fn: Callable, *args, **kwargs) -> Callable:
+        criteria_list = []
+        proxy_components = []
+
+        if args:
+            criteria_list = list(filter(lambda x: isinstance(x, Criteria), args))
+            proxy_components = list(
+                filter(lambda x: isinstance(x, type(Component)), args)
+            )
+
+        if kwargs:
+            criteria_list = list(kwargs.get("criteria_list", criteria_list))
+            proxy_components = list(kwargs.get("proxy_components", proxy_components))
+
+        if not len(criteria_list) and len(proxy_components):
+            for proxy_component in proxy_components:
+                criteria_list.append(HasComponent(proxy_component))
+
         def new_fn(*args, **kwargs):
             for entity in self.filter(*criteria_list):
-                fn(entity, *args, **kwargs)
+                entity_proxy = EntityProxy(entity, *proxy_components)
+                fn(entity_proxy, *args, **kwargs)
 
         return new_fn
 
