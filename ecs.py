@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Callable, Generator, Iterable, Self, Type
 
 
-class Component(object):
+class Component(ABC):
     """
     Base class for all components in the ECS system.
     """
@@ -171,15 +171,19 @@ class EntityProxy(IEntity):
         return self._entity.get(component)
 
 
-class Criteria(object):
+################################################################################
+
+
+class Criteria(ABC):
     """
     Base class for all criteria in the ECS system.
 
     Criteria are used to filter entities based on certain conditions.
     """
 
+    @abstractmethod
     def meet_criteria(self, entity: Entity) -> bool:
-        return False
+        raise NotImplementedError
 
 
 class HasId(Criteria):
@@ -314,7 +318,10 @@ class SugarCriteria(Criteria):
         return all(criteria.meet_criteria(entity) for criteria in self._criteria_list)
 
 
-class Query(object):
+################################################################################
+
+
+class Query:
     """
     A class representing a query in the ECS system.
 
