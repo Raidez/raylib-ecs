@@ -22,8 +22,8 @@ def test_basic_call(basic_context):
     )("assets/sprite")
 
 
-def test_call(basic_context, entity_hero):
-    query, hero = basic_context, entity_hero
+def test_call(basic_context, entity_hero, entity_logo):
+    query, hero, logo = basic_context, entity_hero, entity_logo
 
     def move_position(entity: EntityProxy, offset: int):
         entity.get(Position).x += offset
@@ -39,7 +39,19 @@ def test_call(basic_context, entity_hero):
     query.call(move_position, Position)(10)
 
     assert hero.get(Position).x == 100
+    assert logo.get(Position).x == 60
 
+def test_call_for_all_entities(basic_context, entity_hero, entity_logo):
+    query, hero, logo = basic_context, entity_hero, entity_logo
+
+    def move_position(entities: list[EntityProxy], offset: int):
+        for entity in entities:
+            entity.get(Position).x += offset
+    
+    query.call(move_position, Position, strategy="all-at-once")(10)
+
+    assert hero.get(Position).x == 60
+    assert logo.get(Position).x == 20
 
 def test_decorator(basic_context, entity_hero):
     query, hero = basic_context, entity_hero

@@ -338,9 +338,11 @@ class Query(object):
             if len(entity):
                 yield from Query(entity).filter(*criteria_list)
 
-    def call(self, fn: Callable, *args, **kwargs) -> Callable:
+    def call(self, fn: Callable, *args, strategy="one-by-one", **kwargs) -> Callable:
         criteria_list = []
         proxy_components = []
+        if strategy not in ("one-by-one", "all-at-once"):
+            raise ValueError("Strategy must be one-by-one or all-at-once")
 
         if args:
             criteria_list = list(filter(lambda x: isinstance(x, Criteria), args))
@@ -357,9 +359,18 @@ class Query(object):
                 criteria_list.append(HasComponent(proxy_component))
 
         def new_fn(*args, **kwargs):
-            for entity in self.filter(*criteria_list):
-                entity_proxy = EntityProxy(entity, *proxy_components)
-                fn(entity_proxy, *args, **kwargs)
+            if strategy == "all-at-once":
+                entities = []
+                for entity in self.filter(*criteria_list):
+                    entity_proxy = EntityProxy(entity, *proxy_components)
+                    entities.append(entity_proxy)
+
+                fn(entities, *args, **kwargs)
+
+            elif strategy == "one-by-one":
+                for entity in self.filter(*criteria_list):
+                    entity_proxy = EntityProxy(entity, *proxy_components)
+                    fn(entity_proxy, *args, **kwargs)
 
         return new_fn
 
