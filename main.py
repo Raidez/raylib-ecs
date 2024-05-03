@@ -1,9 +1,20 @@
 import copy
 
-from pyray import *
+from pyray import (
+    RAYWHITE,
+    Vector2,
+    begin_drawing,
+    clear_background,
+    close_window,
+    end_drawing,
+    get_frame_time,
+    init_window,
+    set_target_fps,
+    window_should_close,
+)
 
-from components import *
-from ecs import Entity, HasId, Query
+from components import Sprite, Transform
+from ecs import Entity, HasComponent, HasId, Query
 from systems import load_resources, render_sprites, unload_resources
 
 WIDTH, HEIGHT = 800, 450
@@ -31,11 +42,11 @@ scarfy2.get(Sprite).z_index = -5
 ################################################################################
 
 
-def update_scarfy(entity: Entity, delta: float):
-    entity.transform.rotation += 10.0 * delta
+def update_scarfy(query: Query, delta: float):
+    entity_list = query.filter(HasId("scarfy"), HasComponent(Transform))
+    for entity in entity_list:
+        entity.transform.rotation += 10.0 * delta
 
-
-update_scarfy = Query.decorate(update_scarfy, Transform, HasId("scarfy"))
 
 ################################################################################
 
@@ -48,7 +59,7 @@ while not window_should_close():
 
     # render
     begin_drawing()
-    clear_background(RAYWHITE)
+    clear_background(RAYWHITE)  # type: ignore
     render_sprites(query)
     end_drawing()
 

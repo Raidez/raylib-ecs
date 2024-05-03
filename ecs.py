@@ -2,13 +2,27 @@ import copy
 import warnings
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Callable, Generator, Iterable, Self, Type
+from typing import (
+    Any,
+    Callable,
+    Generator,
+    Iterable,
+    NotRequired,
+    Self,
+    Type,
+    TypedDict,
+    Unpack,
+)
 
 
 class Component(ABC):
     "Base class for all components in the ECS system."
 
-    ...
+    def __getattr__(self, name: str) -> Any:
+        return super().__getattribute__(name)
+
+    def __setattr__(self, name: str, value: Any):
+        super().__setattr__(name, value)
 
 
 class IEntity(ABC):
@@ -421,6 +435,12 @@ class QueryStrategy(Enum):
     ALL_AT_ONCE = 2
 
 
+class _QueryArgs(TypedDict):
+    strategy: NotRequired[QueryStrategy]
+    criteria_list: NotRequired[list[Criteria]]
+    proxy_components: NotRequired[list[Type[Component]]]
+
+
 class Query:
     """
     A class representing a query in the ECS system.
@@ -463,7 +483,7 @@ class Query:
             if len(entity):
                 yield from Query(entity).filter(*criteria_list)
 
-    def call(
+    def call_(
         self,
         fn: Callable,
         *args,
@@ -518,8 +538,119 @@ class Query:
         return all(criteria.meet_criteria(entity) for criteria in criteria_list)
 
     @staticmethod
-    def decorate(fn: Callable, *args, **kwargs) -> Callable:
+    def decorate_(fn: Callable, *args, **kwargs) -> Callable:
         def new_fn(query: Query, *fn_args, **fn_kwargs):
             return query.call(fn, *args, **kwargs)(*fn_args, **fn_kwargs)
 
         return new_fn
+
+    def call(
+        self,
+        fn: Callable,
+        *args: Criteria | Type[Component],
+        strategy: QueryStrategy = QueryStrategy.ONE_BY_ONE,
+        criteria_list: list[Criteria] = [],
+        proxy_components: list[Type[Component]] = [],
+    ) -> Callable:
+        """
+        Call a function with specific criteria and strategy.
+
+        Args:
+            fn (Callable): The function to call.
+            *args (list[Criteria] | list[type[Component]]): A variable number of criteria or component types.
+            criteria_list (list[Criteria], optional): The list of criteria to check against entities. Defaults to [].
+            proxy_components (list[Type[Component]], optional): The list of component types to use for entity proxies. Defaults to [].
+            strategy (QueryStrategy, optional): The strategy to use for calling the function. Defaults to QueryStrategy.ONE_BY_ONE.
+
+        Returns:
+            Callable: A new function that applies the specified strategy and criteria.
+        """
+        # args can be a list of criteria or a list of proxy components
+        for arg in args:
+            if isinstance(arg, Criteria):
+                criteria_list.append(arg)
+            elif isinstance(arg, type(Component)):
+                proxy_components.append(arg)
+
+        # if not criteria_list, add HasComponent for each proxy component
+        if not len(criteria_list) and len(proxy_components):
+            for proxy_component in proxy_components:
+                criteria_list.append(HasComponent(proxy_component))
+
+        # make sure the function is decorated with the correct strategy
+        def new_fn(*args, **kwargs):
+            if strategy is QueryStrategy.ALL_AT_ONCE:
+                entities = []
+                for entity in self.filter(*criteria_list):
+                    entity_proxy = EntityProxy(entity, *proxy_components)
+                    entities.append(entity_proxy)
+
+                fn(entities, *args, **kwargs)
+
+            elif strategy is QueryStrategy.ONE_BY_ONE:
+                for entity in self.filter(*criteria_list):
+                    entity_proxy = EntityProxy(entity, *proxy_components)
+                    fn(entity_proxy, *args, **kwargs)
+
+        return new_fn
+
+    @staticmethod
+    def decorate(
+        fn: Callable,
+        *args: Criteria | Type[Component],
+        strategy: QueryStrategy = QueryStrategy.ONE_BY_ONE,
+        criteria_list: list[Criteria] = [],
+        proxy_components: list[Type[Component]] = [],
+    ) -> Callable:
+        """
+        Decorates a function with additional functionality before calling it.
+
+        Args:
+            self: The Query object.
+            fn: The function to be decorated.
+            *args: Variable number of Criteria or Component types.
+            criteria_list: List of Criteria objects.
+            proxy_components: List of Component types.
+            strategy: The strategy for executing the decorated function.
+
+        Returns:
+            Callable: The decorated function.
+        """
+
+        def new_fn(query: Query, *fn_args, **fn_kwargs):
+            return query.call(
+                fn,
+                *args,
+                strategy=strategy,
+                criteria_list=criteria_list,
+                proxy_components=proxy_components,
+            )(*fn_args, **fn_kwargs)
+
+        return new_fn
+
+    @staticmethod
+    def decorator(
+        *args: Criteria | Type[Component], **kwargs: Unpack[_QueryArgs]
+    ) -> Callable:
+        """
+        A decorator function that takes in arguments and key-value pairs to apply a strategy to the decorated function.
+
+        Args:
+            strategy (QueryStrategy, optional): The strategy to apply. Defaults to QueryStrategy.ONE_BY_ONE.
+            criteria_list (list[Criteria], optional): The list of criteria to check against entities. Defaults to [].
+            proxy_components (list[Type[Component]], optional): The list of component types to use for entity proxies. Defaults to [].
+        """
+        strategy = kwargs.get("strategy", QueryStrategy.ONE_BY_ONE)
+        criteria_list = kwargs.get("criteria_list", [])
+        proxy_components = kwargs.get("proxy_components", [])
+
+        def inner_fn(func):
+            return Query.decorate(
+                func,
+                *args,
+                strategy=strategy,
+                criteria_list=criteria_list,
+                proxy_components=proxy_components,
+            )
+
+        return inner_fn
