@@ -386,8 +386,8 @@ class Query:
         return all(criteria.meet_criteria(entity) for criteria in criteria_list)
 
     @staticmethod
-    def decorate(fn: Callable, *criteria_list: Criteria) -> Callable:
-        def new_fn(query: Query, *args, **kwargs):
-            return query.call(fn, *criteria_list)(*args, **kwargs)
+    def decorate(fn: Callable, *args, **kwargs) -> Callable:
+        def new_fn(query: Query, *fn_args, **fn_kwargs):
+            return query.call(fn, *args, **kwargs)(*fn_args, **fn_kwargs)
 
         return new_fn

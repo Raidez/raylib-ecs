@@ -41,25 +41,49 @@ def test_call(basic_context, entity_hero, entity_logo):
     assert hero.get(Position).x == 100
     assert logo.get(Position).x == 60
 
+
 def test_call_for_all_entities(basic_context, entity_hero, entity_logo):
     query, hero, logo = basic_context, entity_hero, entity_logo
 
     def move_position(entities: list[EntityProxy], offset: int):
         for entity in entities:
             entity.get(Position).x += offset
-    
+
     query.call(move_position, Position, strategy="all-at-once")(10)
 
     assert hero.get(Position).x == 60
     assert logo.get(Position).x == 20
 
-def test_decorator(basic_context, entity_hero):
-    query, hero = basic_context, entity_hero
+
+def test_decorator(basic_context, entity_hero, entity_logo):
+    query, hero, logo = basic_context, entity_hero, entity_logo
 
     def move_position(entity: Entity, offset: int):
         entity.get(Position).x += offset
 
-    move_position_dec = Query.decorate(move_position, HasComponent(Position))
-    move_position_dec(query, 10)
+    Query.decorate(
+        move_position,
+        criteria_list=[HasComponent(Position)],
+        proxy_components=[Position],
+    )(query, 10)
+    Query.decorate(move_position, proxy_components=[Position])(query, 10)
+    Query.decorate(move_position, HasComponent(Position), Position)(query, 10)
+    Query.decorate(move_position, Position, HasComponent(Position))(query, 10)
+    Query.decorate(move_position, Position)(query, 10)
+
+    assert hero.get(Position).x == 100
+    assert logo.get(Position).x == 60
+
+
+def test_decorator_for_all_entities(basic_context, entity_hero, entity_logo):
+    query, hero, logo = basic_context, entity_hero, entity_logo
+
+    def move_position(entities: list[EntityProxy], offset: int):
+        for entity in entities:
+            entity.get(Position).x += offset
+
+    Query.decorate(move_position, Position, strategy="all-at-once")(query, 10)
 
     assert hero.get(Position).x == 60
+    assert logo.get(Position).x == 20
+
