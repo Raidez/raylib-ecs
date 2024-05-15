@@ -4,7 +4,7 @@ import raylib
 from pyray import Rectangle, Vector2, draw_texture_pro, load_texture, unload_texture
 
 from components import Sprite, Transform
-from ecs import Entity, HasComponent, Query
+from ecs import Entity, EntityProxy, HasComponent, Query
 
 Texture: TypeAlias = raylib.ffi.CData
 
@@ -26,7 +26,7 @@ def unload_resources(query: Query):
     ]
 
 
-def draw_sprite(entity: Entity):
+def draw_sprite(entity: Entity | EntityProxy):
     # retrieve data
     texture = entity.sprite.texture
     offset = entity.sprite.offset

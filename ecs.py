@@ -11,7 +11,6 @@ from typing import (
     Self,
     Type,
     TypedDict,
-    Unpack,
 )
 
 
@@ -170,12 +169,16 @@ class Entity(IEntity):
     def __len__(self) -> int:
         return len(self._entities)
 
-    def __eq__(self, other: Self) -> bool:
-        return (
-            self.id == other.id
-            and self._components == other._components
-            and self._entities == other._entities
-        )
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Entity):
+            return (
+                self.id == other.id
+                and self._components == other._components
+                and self._entities == other._entities
+            )
+        if isinstance(other, EntityProxy):
+            return self.id == other.id
+        return False
 
     # for debugging
     def __str__(self) -> str:
@@ -451,77 +454,62 @@ class Query:
     def __init__(self, context: Entity):
         self._context = context
 
-    def get(self, *criteria_list: Criteria) -> Entity | None:
-        """
-        Returns the first entity that meets all the given criteria.
+    def _check_arguments(self, *args: Criteria | Type[Component]):
+        criteria_list: list[Criteria] = []
+        proxy_components: list[Type[Component]] = []
 
-        Args:
-            *criteria_list (Criteria): A variable number of criteria objects to check against each entity.
+        # args can be a list of criteria or a list of proxy components
+        for arg in args:
+            if isinstance(arg, Criteria):
+                criteria_list.append(arg)
+            elif isinstance(arg, type(Component)):
+                proxy_components.append(arg)
 
-        Returns:
-            Entity | None: The first entity that meets all the given criteria or None if no entity meets all the criteria.
-        """
-        for entity in self._context._entities:
-            if len(entity):
-                return Query(entity).get(*criteria_list)
-            if Query.check(entity, *criteria_list):
-                return entity
-
-    def filter(self, *criteria_list: Criteria) -> Generator[Entity, None, None]:
-        """
-        Filters the entities in the context based on the given criteria.
-
-        Args:
-            *criteria_list (Criteria): A variable number of criteria objects to check against each entity.
-
-        Yields:
-            Entity: An entity that meets all the given criteria.
-        """
-        for entity in self._context._entities:
-            if Query.check(entity, *criteria_list):
-                yield entity
-            if len(entity):
-                yield from Query(entity).filter(*criteria_list)
-
-    def call_(
-        self,
-        fn: Callable,
-        *args,
-        strategy: QueryStrategy = QueryStrategy.ONE_BY_ONE,
-        **kwargs,
-    ) -> Callable:
-        criteria_list = []
-        proxy_components = []
-
-        if args:
-            criteria_list = list(filter(lambda x: isinstance(x, Criteria), args))
-            proxy_components = list(
-                filter(lambda x: isinstance(x, type(Component)), args)
-            )
-
-        if kwargs:
-            criteria_list = list(kwargs.get("criteria_list", criteria_list))
-            proxy_components = list(kwargs.get("proxy_components", proxy_components))
-
+        # if not criteria_list, add HasComponent for each proxy component
         if not len(criteria_list) and len(proxy_components):
             for proxy_component in proxy_components:
                 criteria_list.append(HasComponent(proxy_component))
 
-        def new_fn(*args, **kwargs):
-            if strategy is QueryStrategy.ALL_AT_ONCE:
-                entities = []
-                for entity in self.filter(*criteria_list):
-                    entity_proxy = EntityProxy(entity, *proxy_components)
-                    entities.append(entity_proxy)
+        return criteria_list, proxy_components
 
-                fn(entities, *args, **kwargs)
+    def get(self, *args: Criteria | Type[Component]) -> EntityProxy | None:
+        """
+        Returns the first entity that meets all the given criteria.
 
-            elif strategy is QueryStrategy.ONE_BY_ONE:
-                for entity in self.filter(*criteria_list):
-                    entity_proxy = EntityProxy(entity, *proxy_components)
-                    fn(entity_proxy, *args, **kwargs)
+        Args:
+            *args (list[Criteria] | list[type[Component]]): A variable number of criteria or component types.
 
-        return new_fn
+        Returns:
+            EntityProxy | None: The first entity that meets all the given criteria or None if no entity meets all the criteria.
+        """
+        criteria_list, proxy_component = self._check_arguments(*args)
+
+        # get the first entity that meets all the criteria
+        for entity in self._context._entities:
+            if len(entity):
+                return Query(entity).get(*criteria_list)
+            if Query.check(entity, *criteria_list):
+                return EntityProxy(entity, *proxy_component)
+
+    def filter(
+        self, *args: Criteria | Type[Component]
+    ) -> Generator[EntityProxy, None, None]:
+        """
+        Filters the entities in the context based on the given criteria.
+
+        Args:
+            *args (list[Criteria] | list[type[Component]]): A variable number of criteria or component types.
+
+        Yields:
+            EntityProxy: An entity that meets all the given criteria.
+        """
+        criteria_list, proxy_component = self._check_arguments(*args)
+
+        for entity in self._context._entities:
+            if Query.check(entity, *criteria_list):
+                yield EntityProxy(entity, *proxy_component)
+            if len(entity):
+                yield from Query(entity).filter(*criteria_list)
 
     @staticmethod
     def check(entity: Entity, *criteria_list: Criteria) -> bool:
@@ -536,121 +524,3 @@ class Query:
             bool: True if the entity meets all the criteria, False otherwise.
         """
         return all(criteria.meet_criteria(entity) for criteria in criteria_list)
-
-    @staticmethod
-    def decorate_(fn: Callable, *args, **kwargs) -> Callable:
-        def new_fn(query: Query, *fn_args, **fn_kwargs):
-            return query.call(fn, *args, **kwargs)(*fn_args, **fn_kwargs)
-
-        return new_fn
-
-    def call(
-        self,
-        fn: Callable,
-        *args: Criteria | Type[Component],
-        strategy: QueryStrategy = QueryStrategy.ONE_BY_ONE,
-        criteria_list: list[Criteria] = [],
-        proxy_components: list[Type[Component]] = [],
-    ) -> Callable:
-        """
-        Call a function with specific criteria and strategy.
-
-        Args:
-            fn (Callable): The function to call.
-            *args (list[Criteria] | list[type[Component]]): A variable number of criteria or component types.
-            criteria_list (list[Criteria], optional): The list of criteria to check against entities. Defaults to [].
-            proxy_components (list[Type[Component]], optional): The list of component types to use for entity proxies. Defaults to [].
-            strategy (QueryStrategy, optional): The strategy to use for calling the function. Defaults to QueryStrategy.ONE_BY_ONE.
-
-        Returns:
-            Callable: A new function that applies the specified strategy and criteria.
-        """
-        # args can be a list of criteria or a list of proxy components
-        for arg in args:
-            if isinstance(arg, Criteria):
-                criteria_list.append(arg)
-            elif isinstance(arg, type(Component)):
-                proxy_components.append(arg)
-
-        # if not criteria_list, add HasComponent for each proxy component
-        if not len(criteria_list) and len(proxy_components):
-            for proxy_component in proxy_components:
-                criteria_list.append(HasComponent(proxy_component))
-
-        # make sure the function is decorated with the correct strategy
-        def new_fn(*args, **kwargs):
-            if strategy is QueryStrategy.ALL_AT_ONCE:
-                entities = []
-                for entity in self.filter(*criteria_list):
-                    entity_proxy = EntityProxy(entity, *proxy_components)
-                    entities.append(entity_proxy)
-
-                fn(entities, *args, **kwargs)
-
-            elif strategy is QueryStrategy.ONE_BY_ONE:
-                for entity in self.filter(*criteria_list):
-                    entity_proxy = EntityProxy(entity, *proxy_components)
-                    fn(entity_proxy, *args, **kwargs)
-
-        return new_fn
-
-    @staticmethod
-    def decorate(
-        fn: Callable,
-        *args: Criteria | Type[Component],
-        strategy: QueryStrategy = QueryStrategy.ONE_BY_ONE,
-        criteria_list: list[Criteria] = [],
-        proxy_components: list[Type[Component]] = [],
-    ) -> Callable:
-        """
-        Decorates a function with additional functionality before calling it.
-
-        Args:
-            self: The Query object.
-            fn: The function to be decorated.
-            *args: Variable number of Criteria or Component types.
-            criteria_list: List of Criteria objects.
-            proxy_components: List of Component types.
-            strategy: The strategy for executing the decorated function.
-
-        Returns:
-            Callable: The decorated function.
-        """
-
-        def new_fn(query: Query, *fn_args, **fn_kwargs):
-            return query.call(
-                fn,
-                *args,
-                strategy=strategy,
-                criteria_list=criteria_list,
-                proxy_components=proxy_components,
-            )(*fn_args, **fn_kwargs)
-
-        return new_fn
-
-    @staticmethod
-    def decorator(
-        *args: Criteria | Type[Component], **kwargs: Unpack[_QueryArgs]
-    ) -> Callable:
-        """
-        A decorator function that takes in arguments and key-value pairs to apply a strategy to the decorated function.
-
-        Args:
-            strategy (QueryStrategy, optional): The strategy to apply. Defaults to QueryStrategy.ONE_BY_ONE.
-            criteria_list (list[Criteria], optional): The list of criteria to check against entities. Defaults to [].
-            proxy_components (list[Type[Component]], optional): The list of component types to use for entity proxies. Defaults to [].
-        """
-        strategy = kwargs.get("strategy", QueryStrategy.ONE_BY_ONE)
-        criteria_list = kwargs.get("criteria_list", [])
-        proxy_components = kwargs.get("proxy_components", [])
-
-        def inner_fn(func):
-            return Query.decorate(
-                func,
-                *args,
-                strategy=strategy,
-                criteria_list=criteria_list,
-                proxy_components=proxy_components,
-            )
-
-        return inner_fn

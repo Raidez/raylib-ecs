@@ -1,11 +1,12 @@
 from dataclasses import dataclass, field
+from typing import TypeAlias, Union
 
 import pyray
 
 from ecs import Component
 
-type Color = pyray.Color | tuple[int, int, int, int]
-type Texture = str | pyray.Texture
+Color: TypeAlias = Union[pyray.Color, tuple[int, int, int, int]]
+Texture: TypeAlias = Union[str, pyray.Texture]
 
 
 @dataclass
