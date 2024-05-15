@@ -1,16 +1,13 @@
 import copy
 import warnings
 from abc import ABC, abstractmethod
-from enum import Enum
 from typing import (
     Any,
     Callable,
     Generator,
     Iterable,
-    NotRequired,
     Self,
     Type,
-    TypedDict,
 )
 
 
@@ -347,7 +344,7 @@ class FilterCriteria(Criteria):
 
 class SugarCriteria(Criteria):
     """
-    A class representing criteria using a sugar syntax for easy filtering.
+    A criteria using a sugar syntax for easy filtering.
 
     Examples:
         - SugarCriteria(Position, Sprite, id="hero") => check if entity has both Position and Sprite and entity id is "hero"
@@ -429,19 +426,6 @@ class SugarCriteria(Criteria):
 
 
 ################################################################################
-
-
-class QueryStrategy(Enum):
-    "Query strategy for query calls."
-
-    ONE_BY_ONE = 1
-    ALL_AT_ONCE = 2
-
-
-class _QueryArgs(TypedDict):
-    strategy: NotRequired[QueryStrategy]
-    criteria_list: NotRequired[list[Criteria]]
-    proxy_components: NotRequired[list[Type[Component]]]
 
 
 class Query:

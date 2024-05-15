@@ -1,13 +1,17 @@
 # Quick Start
-## Use a context world
+
+## Create a context world
 First we need to define a global entity (=context) whom hold inside all other entity.
 And make a query with the defined context.
+
 ```python
-from ecs import *
+from ecs import Entity, Component, Query, SugarCriteria
 
 world = Entity("world")
 query = Query(context=world)
 ```
+
+An entity must have a string identifier.
 
 ## Define component
 Components are simple classes whom inherit from Component.
@@ -20,6 +24,7 @@ class Position(Component):
 ```
 
 You can use the standard librairie *dataclass* decorator to save some code.
+
 ```python
 from dataclasses import dataclass
 
@@ -29,7 +34,7 @@ class Position(Component):
     y = 0.0
 ```
 
-## Create an entity
+## Bake an entity
 ```python
 scarfy = Entity("scarfy", Position(x=50.0, y=220.0))
 world.append(scarfy)
@@ -39,6 +44,7 @@ world.append(scarfy)
 ```
 
 We can also defined all entities inside the world at the initialisation.
+
 ```python
 world = Entity("world",
     Entity("scarfy", Position(x=50.0, y=220.0)),
@@ -46,32 +52,52 @@ world = Entity("world",
 query = Query(context=world)
 ```
 
-## The purpose of Query
-If we want to make a system that affect multiple entities or we have a lot of entities,
-we can use the query methodology.
-
-1. define the query context ```query = Query(context=world)```
-2. use query to find entities by criteria ```query.get(HasId("scarfy")) # return the first entity whom meet criteria```
+Keep in mind a entity can have multiple entities (and context world is an entity).
 
 ## Call a system
 System is a standard function.
+
 ```python
-def update_scarfy(entity: Entity):
+def update_position(entity: Entity):
     entity.position.x += 10.0
+
+
+update_position(scarfy)
 ```
 
-They are several methods to call the system:
-- standard
-- query.call()
-- Query.decorator()
+Be when we have multiple entities, it can be difficult to handle.
+So the query system come to rescue !
 
+## The purpose of Query
+Remember the query after the context world creation ?
+The query have 3 methods (check, get and filter).
+
+We can use get/filter to find an entity with criteria,
+let's try it !
 
 ```python
-update_scarfy(scarfy)
+def update_position(query: Query):
+    for entity in query.filter(SugarCriteria(has=Position)):
+        entity.position.x += 10.0
 
-query.call(update_scarfy, criteria_list=[HasComponent(Position)], proxy_components=[Position])()
-
-update_scarfy_dec = Query.decorate(update_scarfy, Position, HasId("scarfy"))
-update_scarfy_dec(query)
+update_position(query)
 ```
 
+## Choose your criteria
+They are many criteria available :
+- `HasId("scarfy")` => A criteria that checks if an entity has a certain id.
+- `HasComponent(Position)` => A criteria that checks if an entity has some components.
+- `HasComponentValue(Position(50, 20))` => A criteria that checks if an entity has some components with a certain value.
+- `HasNotComponent(Spatial)` => A criteria that checks if an entity doesn't have some components.
+- `FilterCriteria(lambda e: e.has(Position))` => A criteria that filters entities based on a filter function.
+- `SugarCriteria(has=Position, id="scarfy", position__x=50)` => A criteria using a sugar syntax for easy filtering.
+
+You can even define your own criteria like that :
+
+```python
+class IsScarfy(Criteria):
+    "A criteria that checks if an entity has id scarfy."
+
+    def meet_criteria(self, entity: Entity) -> bool:
+        return entity.id == "scarfy"
+```
