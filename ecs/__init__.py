@@ -1,4 +1,4 @@
-from .base_classes import Component, Criteria, IEntity
+from .interfaces import Component, Criteria, IEntity
 from .criterias import (
     FilterCriteria,
     HasComponent,
