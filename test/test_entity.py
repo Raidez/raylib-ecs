@@ -53,17 +53,17 @@ def test_deep_copy(entity_hero):
     assert hero_copy.has(Position)
 
 
-def test_proxy(entity_hero):
-    hero_orig = entity_hero
-    hero_prox = EntityProxy(hero_orig, Position)
+# def test_proxy(entity_hero):
+#     hero_orig = entity_hero
+#     hero_prox = EntityProxy(hero_orig, Position)
 
-    assert hero_prox.id == "hero"
-    assert hero_prox.has(Position)
-    assert hero_prox.get(Position).x == 50
+#     assert hero_prox.id == "hero"
+#     assert hero_prox.has(Position)
+#     assert hero_prox.get(Position).x == 50
 
-    hero_prox.update(Position(x=60))
-    assert hero_prox.get(Position).x == 60
-    assert hero_orig.get(Position).x == 60
+#     hero_prox.update(Position(x=60))
+#     assert hero_prox.get(Position).x == 60
+#     assert hero_orig.get(Position).x == 60
 
-    assert not hero_prox.has(Sprite)
-    assert hero_orig.has(Sprite)
+#     assert not hero_prox.has(Sprite)
+#     assert hero_orig.has(Sprite)

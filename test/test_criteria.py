@@ -2,7 +2,7 @@ from test import *
 from ecs import (
     HasId,
     HasComponent,
-    HasComponentValue,
+    HasValue,
     HasNotComponent,
     FilterCriteria,
     SugarCriteria,
@@ -30,7 +30,7 @@ def test_has_components_value(entity_hero):
     "check if entity meet criteria with HasComponentValue"
     hero = entity_hero
 
-    assert Query.check(hero, HasComponentValue(Position(50, 20)))
+    assert Query.check(hero, HasValue(Position(50, 20)))
 
 
 def test_filter_criteria(entity_hero):
