@@ -199,36 +199,35 @@ class HasValues(Criteria):
 
 
 class Has(Criteria):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Criteria | Type[Component] | Component, **kwargs):
         self.criteria_list: list[Criteria] = []
 
         # args processing
         for arg in args:
-            if isinstance(arg, Criteria):
-                self.criteria_list.append(arg)
-            if isinstance(arg, type(Component)):
-                self.criteria_list.append(HasComponent(arg))
-            if isinstance(arg, Component):
-                self.criteria_list.append(HasValue(arg))
+            match arg:
+                case Criteria():
+                    self.criteria_list.append(arg)
+                case Component():
+                    self.criteria_list.append(HasValue(arg))
+                case _ if isinstance(arg, type(Component)):
+                    self.criteria_list.append(HasComponent(arg))
 
         # kwargs processing
-        if criteria := kwargs.pop("id", None):
+        if (criteria := kwargs.pop("id", None)) and isinstance(criteria, str):
             self.criteria_list.append(HasId(criteria))
 
-        if criteria := kwargs.pop("component", None):
+        if (criteria := kwargs.pop("component", None)) and isinstance(criteria, type(Component)):
             self.criteria_list.append(HasComponent(criteria))
 
-        if (criterias := kwargs.pop("components", None)) and isinstance(criteria, list):
-            for criteria in criterias:
+        for criteria in kwargs.pop("components", []):
+            if isinstance(criteria, type(Component)):
                 self.criteria_list.append(HasComponent(criteria))
 
-        if criteria := kwargs.pop("component__exclude", None):
+        if (criteria := kwargs.pop("component__exclude", None)) and isinstance(criteria, type(Component)):
             self.criteria_list.append(HasNotComponent(criteria))
 
-        if (criterias := kwargs.pop("components__exclude", None)) and isinstance(
-            criteria, list
-        ):
-            for criteria in criterias:
+        for criteria in kwargs.pop("components__exclude", []):
+            if isinstance(criteria, type(Component)):
                 self.criteria_list.append(HasNotComponent(criteria))
 
         # components values comparison
