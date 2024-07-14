@@ -1,26 +1,23 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
 import copy
-from typing import Any, Type
+from abc import ABC, abstractmethod
+from typing import Any, Optional, Type, TypeVar
 
 ############################# abstraction #############################
-class Component(ABC):
-    def __getattr__(self, name: str) -> Any:
-        return super().__getattribute__(name)
-
-    def __setattr__(self, name: str, value: Any):
-        super().__setattr__(name, value)
+class Component(ABC): ...
 
 class Criteria(ABC):
     @abstractmethod
     def meet_criteria(self, entity: Entity) -> bool: ...
 
 ############################# concrete class #############################
+C = TypeVar('C', bound=Component)
+
 class Entity:
     def __init__(self, id: str, components: list[Component] = [], entities: list[Entity] = []):
         self.id = id
         self.is_active = True
-        self._components = {}
+        self._components: dict[str, Component] = {}
         self.entities = entities
 
         for component in components:
@@ -29,14 +26,11 @@ class Entity:
     def add(self, component: Component):
         self._components[type(component).__name__.lower()] = component
 
-    def has(self, component_type: Type[Component]) -> bool:
+    def has(self, component_type: Type[C]) -> bool:
         return component_type.__name__.lower() in self._components
 
-    def get(self, component_type: Type[Component]) -> Component:
+    def get(self, component_type: Type[C]) -> C:
         return self._components[component_type.__name__.lower()]
-
-    def get_by_name(self, component_name: str) -> Component:
-        return self._components[component_name.lower()]
 
     # for debugging
     def __str__(self) -> str:
@@ -66,9 +60,29 @@ class Query:
     def __init__(self, context: Entity):
         self.context = context
 
-    def filter(self, criterias: list[Criteria] = []) -> list[Entity]:
+    def get(self, criteria_list: list[Criteria] = []) -> Optional[Entity]:
+        # get all entities in tree
+        entities = []
+        stack = self.context.entities[:]
+        while stack:
+            current = stack.pop()
+
+            if len(current.entities):
+                stack.extend(current.entities)
+
+            entities.append(current)
+
+        entities.reverse()
+
+        output = []
+        for entity in entities:
+            # check if entity meet all criteria
+            if all([criteria.meet_criteria(entity) for criteria in criteria_list]):
+                return entity
+
+    def filter(self, criteria_list: list[Criteria] = []) -> list[Entity]:
         # return all if no criterias provided
-        if not len(criterias):
+        if not len(criteria_list):
             return self.context.entities
 
         # get all entities in tree
@@ -87,7 +101,7 @@ class Query:
         output = []
         for entity in entities:
             # check if entity meet all criteria
-            if all([criteria.meet_criteria(entity) for criteria in criterias]):
+            if all([criteria.meet_criteria(entity) for criteria in criteria_list]):
                 output.append(entity)
 
         return output
@@ -136,7 +150,7 @@ class HasValues(Criteria):
     def meet_criteria(self, entity: Entity) -> bool:
         result = []
         for component_name, data_name, operator, expected_value in self.criteria_list:
-            if component := entity.get_by_name(component_name):
+            if component := entity._components[component_name.lower()]:
                 actual_value = getattr(component, data_name, component)
 
                 match operator:
@@ -195,22 +209,3 @@ class Has(Criteria):
 
     def meet_criteria(self, entity: Entity) -> bool:
         return all(criteria.meet_criteria(entity) for criteria in self.criteria_list)
-
-if __name__ == "__main__":
-    from dataclasses import dataclass
-
-    ### impl ###
-    @dataclass
-    class Position(Component):
-        x: int
-        y: int
-
-    ### test ###
-    world = Entity("world", [], [
-        scarfy := Entity("scarfy", [Position(x=50, y=128)])
-    ])
-
-    query = Query(world)
-    print(repr(scarfy), scarfy.get(Position), query.filter(), query.filter([HasId("scarfy"), HasComponent(Position), HasValue(Position(50, 128))]))
-    print(query.filter([HasValues(position__x__in=[40, 60])]))
-    print(query.filter([Has(Position, Position(50, 128), id="scarfy", component=Position, position__x__in=[40, 60])]))

@@ -1,30 +1,27 @@
-from typing import TypeAlias
-
-import raylib
+from ecs import *
+from components import *
 from pyray import Rectangle, Vector2, draw_texture_pro, load_texture, unload_texture
-
-from components import Sprite, Transform
-from ecs import Entity, HasComponent, Query
 
 def load_resources(query: Query):
     entity_list = query.filter([HasComponent(Sprite)])
     for entity in entity_list:
-        sprite = entity.get(Sprite)
-        if isinstance(sprite.texture, str):
-            sprite.texture = load_texture(sprite.texture)
+        if (sprite := entity.get(Sprite)) and sprite.filename:
+            sprite.texture = load_texture(sprite.filename)
 
 
 def unload_resources(query: Query):
     entity_list = query.filter([HasComponent(Sprite)])
     for entity in entity_list:
-        sprite = entity.get(Sprite)
-        if not isinstance(sprite.texture, str):
-            sprite.texture = unload_texture(sprite.texture)
+        if (sprite := entity.get(Sprite)) and sprite.texture:
+            unload_texture(sprite.texture)
 
 
 def draw_sprite(entity: Entity):
     sprite = entity.get(Sprite)
     transform = entity.get(Transform)
+
+    if not sprite.texture:
+        return
 
     # retrieve data
     texture = sprite.texture

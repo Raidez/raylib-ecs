@@ -1,13 +1,10 @@
-from dataclasses import dataclass, field
-from typing import TypeAlias, Union
-
 import pyray
+from ecs import *
+from typing import Optional, TypeAlias
+from dataclasses import dataclass, field
 
-from ecs import Component
-
-Color: TypeAlias = Union[pyray.Color, tuple[int, int, int, int]]
-Texture: TypeAlias = Union[str, pyray.Texture]
-
+Color: TypeAlias = pyray.Color
+Texture: TypeAlias = pyray.Texture
 
 @dataclass
 class Transform(Component):
@@ -18,8 +15,9 @@ class Transform(Component):
 
 @dataclass
 class Sprite(Component):
-    texture: Texture
-    tint_color: Color = pyray.WHITE
+    filename: str
+    texture: Optional[Texture] = None
+    tint_color: Color = field(default_factory=lambda: Color(*pyray.WHITE))
     use_clip: bool = False
     clip: pyray.Rectangle = field(default_factory=lambda: pyray.Rectangle(0, 0, 0, 0))
     z_index: int = 0

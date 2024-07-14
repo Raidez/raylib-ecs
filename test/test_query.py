@@ -1,26 +1,22 @@
+from ecs import *
 from test import *
-from ecs import (
-    HasId,
-    HasComponent,
-    SugarCriteria,
-)
 
 
-def test_found_by_id(basic_context, entity_hero):
+def test_found_by_id(basic_context: Query, entity_hero: Entity):
     "check first founded entity by id"
     query, hero = basic_context, entity_hero
 
-    assert query.get(HasId("hero")) == hero
+    assert query.get([HasId("hero")]) == hero
 
 
-def test_found_by_criteria(basic_context, entity_hero, entity_logo):
+def test_found_by_criteria(basic_context: Query, entity_hero: Entity, entity_logo: Entity):
     "check founded entities by criteria"
     query, hero, logo = basic_context, entity_hero, entity_logo
 
-    assert all(e in (logo, hero) for e in list(query.filter(HasComponent(Position))))
+    assert all(e in (logo, hero) for e in list(query.filter([HasComponent(Position)])))
 
 
-def test_default_order(advanced_context):
+def test_default_order(advanced_context: Query):
     "check founded entities default order"
     query = advanced_context
 
@@ -36,11 +32,11 @@ def test_default_order(advanced_context):
         "bread",
         "gold",
     ]
-    for i, found in enumerate(query.filter(SugarCriteria(has=Item))):
+    for i, found in enumerate(query.filter([HasComponent(Item)])):
         assert order[i] == found.id
 
 
-def test_forced_order(advanced_context):
+def test_forced_order(advanced_context: Query):
     "check founded entities forced order with sorted()"
     query = advanced_context
 
@@ -56,7 +52,7 @@ def test_forced_order(advanced_context):
         "milk",
         "bread",
     ]
-    entity_list = query.filter(SugarCriteria(has=Item))
+    entity_list = query.filter([HasComponent(Item)])
     entity_list = sorted(
         entity_list,
         key=lambda e: (e.get(Item).rarity, e.get(Item).quantity),
