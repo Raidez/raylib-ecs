@@ -38,13 +38,13 @@ world = Entity(
 )
 query = Query(world)
 
-scarfy1 = copy.deepcopy(scarfy)
-scarfy2 = copy.deepcopy(scarfy)
-world.entities.extend([scarfy1, scarfy2])
+# scarfy1 = copy.deepcopy(scarfy)
+# scarfy2 = copy.deepcopy(scarfy)
+# world.entities.extend([scarfy1, scarfy2])
 
-scarfy1.add(Transform(Vector2(100, 100), scale=Vector2(0.2, 0.2), rotation=45))
-scarfy2.add(Transform(Vector2(600, 250), scale=Vector2(0.8, 0.8), rotation=-90))
-scarfy2.get(Sprite).z_index = -5
+# scarfy1.add(Transform(Vector2(100, 100), scale=Vector2(0.2, 0.2), rotation=45))
+# scarfy2.add(Transform(Vector2(600, 250), scale=Vector2(0.8, 0.8), rotation=-90))
+# scarfy2.get(Sprite).z_index = -5
 
 ################################################################################
 

@@ -1,25 +1,71 @@
-from ecs import Entity, HasComponent, HasId, Query
+from ecs import *
 from test import *
 
 
-def test_found_by_id(basic_context: Query, entity_hero: Entity):
-    "check first founded entity by id"
-    query, hero = basic_context, entity_hero
+def test_get(basic_context: Query, logo: Entity):
+    """Check the founded entity is the first in tree entities."""
+    query = basic_context
+
+    assert query.get() == logo
+
+
+def test_get_only_active(basic_context: Query):
+    """Check the founded entity is active."""
+    query = basic_context
+
+    if chest := query.get([HasId("chest")]):
+        chest.is_active = False
+
+    assert query.get([HasId("chest")]) == None
+
+
+def test_found_all(basic_context: Query, hero: Entity, logo: Entity, chest: Entity):
+    """Check all founded entities."""
+    query = basic_context
+
+    result = query.filter()
+    assert len(result) == 4
+    assert hero in result
+    assert logo in result
+    assert chest in result
+    assert chest.entities[0] in result
+
+
+def test_found_all2(advanced_context: Query):
+    """Check all founded entities."""
+    query = advanced_context
+
+    assert len(query.filter()) == 13
+
+
+def test_found_by_id(basic_context: Query, hero: Entity):
+    """Check first founded entity by id."""
+    query = basic_context
 
     assert query.get([HasId("hero")]) == hero
 
 
 def test_found_by_criteria(
-    basic_context: Query, entity_hero: Entity, entity_logo: Entity
+    basic_context: Query, hero: Entity, logo: Entity
 ):
-    "check founded entities by criteria"
-    query, hero, logo = basic_context, entity_hero, entity_logo
+    """Check founded entities by criteria."""
+    query = basic_context
 
     assert all(e in (logo, hero) for e in list(query.filter([HasComponent(Position)])))
 
 
+def test_found_only_active(advanced_context: Query):
+    """Check founded entities only active."""
+    query = advanced_context
+
+    if chest := query.get([HasId("chest")]):
+        chest.is_active = False
+
+    assert len(query.filter()) == 2
+
+
 def test_default_order(advanced_context: Query):
-    "check founded entities default order"
+    """Check founded entities default order."""
     query = advanced_context
 
     order = [
@@ -39,7 +85,7 @@ def test_default_order(advanced_context: Query):
 
 
 def test_forced_order(advanced_context: Query):
-    "check founded entities forced order with sorted()"
+    """Check founded entities forced order with sorted()."""
     query = advanced_context
 
     order = [

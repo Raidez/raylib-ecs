@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 from abc import ABC, abstractmethod
 from collections import deque
 from typing import Any, Optional, Type, TypeVar
@@ -20,6 +19,16 @@ C = TypeVar("C", bound=Component)
 
 
 class Entity:
+    """
+    Represents an entity in the ECS system.
+
+    Attributes:
+        id (str): The identifier for the entity.
+        is_active (bool): Flag to indicate if the entity is active.
+        _components (dict[str, Component]): Map of components, lowercase classname as key.
+        entities (list[Entity]): List of sub-entities in the entity.
+    """
+
     def __init__(
         self, id: str, components: list[Component] = [], entities: list[Entity] = []
     ):
@@ -32,12 +41,19 @@ class Entity:
             self.add(component)
 
     def add(self, component: Component):
+        """Add/replace component in the entity."""
         self._components[type(component).__name__.lower()] = component
 
     def has(self, component_type: Type[C]) -> bool:
-        return component_type.__name__.lower() in self._components
+        """Check if the entity has the specified component."""
+        for component_name in self._components:
+            if component_name == component_type.__name__.lower():
+                return True
+
+        return False
 
     def get(self, component_type: Type[C]) -> C:
+        """Return the specified component."""
         return self._components[component_type.__name__.lower()]
 
     # for debugging
@@ -61,46 +77,16 @@ class Entity:
             s += f" => {self.entities}"
         return s
 
-    # copy and deepcopy
-    def __copy__(self):
-        return Entity(self.id)
-
-    def __deepcopy__(self, memo):
-        E = Entity(self.id)
-        for component in self._components.values():
-            E.add(copy.copy(component))
-        for entity in self.entities:
-            E.entities.append(copy.deepcopy(entity))
-        return E
-
 
 class Query:
     def __init__(self, context: Entity):
         self.context = context
 
     def get(self, criteria_list: list[Criteria] = []) -> Optional[Entity]:
-        # get all entities in tree
-        entities = []
-        stack = self.context.entities[:]
-        while stack:
-            current = stack.pop()
-
-            if len(current.entities):
-                stack.extend(current.entities)
-
-            entities.append(current)
-
-        entities.reverse()
-
-        for entity in entities:
-            # check if entity meet all criteria
-            if all([criteria.meet_criteria(entity) for criteria in criteria_list]):
-                return entity
-
-    def filter(self, criteria_list: list[Criteria] = []) -> list[Entity]:
+        """Get the first entity whom meet criteria in the tree context."""
         # return all if no criterias provided
         if not len(criteria_list):
-            return self.context.entities
+            return self.context.entities[0]
 
         # get all entities in tree
         entities = []
@@ -108,10 +94,38 @@ class Query:
         while stack:
             current = stack.popleft()
 
+            if not current.is_active:
+                continue
+
             if len(current.entities):
                 stack.extend(current.entities)
 
             entities.append(current)
+
+        for entity in entities:
+            # check if entity meet all criteria
+            if all([criteria.meet_criteria(entity) for criteria in criteria_list]):
+                return entity
+
+    def filter(self, criteria_list: list[Criteria] = []) -> list[Entity]:
+        """Filter entities by criteria in the tree context."""
+        # get all entities in tree
+        entities = []
+        stack = deque(self.context.entities[:])
+        while stack:
+            current = stack.popleft()
+
+            if not current.is_active:
+                continue
+
+            if len(current.entities):
+                stack.extend(current.entities)
+
+            entities.append(current)
+
+        # return all if no criterias provided
+        if not len(criteria_list):
+            return entities
 
         output = []
         for entity in entities:
@@ -124,6 +138,7 @@ class Query:
 
 ############################# criterias definition #############################
 class HasId(Criteria):
+    """A criteria that checks if an entity has the id."""
     def __init__(self, id: str):
         self.id = id
 
@@ -132,6 +147,7 @@ class HasId(Criteria):
 
 
 class HasComponent(Criteria):
+    """A criteria that checks if an entity has the component."""
     def __init__(self, component_type: Type[Component]):
         self.component_type = component_type
 
@@ -140,6 +156,7 @@ class HasComponent(Criteria):
 
 
 class HasNotComponent(Criteria):
+    """A criteria that checks if an entity doesn't have the component."""
     def __init__(self, component_type: Type[Component]):
         self.component_type = component_type
 
@@ -148,6 +165,7 @@ class HasNotComponent(Criteria):
 
 
 class HasValue(Criteria):
+    """A criteria that checks if an entity has a component with specified value."""
     def __init__(self, component_value: Component):
         self.component_value = component_value
 
@@ -156,6 +174,20 @@ class HasValue(Criteria):
 
 
 class HasValues(Criteria):
+    """
+    A criteria that checks if an entity has a list of component values.
+
+    Kwargs:
+        Each kwargs key is splitted in 3 parts:
+            - The component_name
+            - The component sub data
+            - The operator in the list => ["eq", "ne", "lt", "gt", "lte", "gte", "in"]
+        And the kwargs value is the comparison.
+
+    Exemples:
+        Has(position=Position(50, 20), position__x=50, position__y__in=[10, 30]).meet_criteria(hero)
+    """
+
     OPERATOR_LIST = ["eq", "ne", "lt", "gt", "lte", "gte", "in"]
 
     def __init__(self, **kwargs):
@@ -163,13 +195,20 @@ class HasValues(Criteria):
         for key, expected_value in kwargs.items():
             component_name, data_name, operator, *_ = key.split("__") + ["", ""]
 
+            if data_name in self.OPERATOR_LIST:
+                operator = data_name
+                data_name = ""
             if operator not in self.OPERATOR_LIST:
                 operator = "eq"
+
             self.criteria_list.append(
                 (component_name, data_name, operator, expected_value)
             )
 
     def meet_criteria(self, entity: Entity) -> bool:
+        if not len(self.criteria_list):
+            return False
+
         result = []
         for component_name, data_name, operator, expected_value in self.criteria_list:
             if component := entity._components[component_name.lower()]:
@@ -192,14 +231,41 @@ class HasValues(Criteria):
                         result.append(
                             expected_value[0] <= actual_value <= expected_value[1]
                         )
-                    case _:
-                        result.append(False)
 
         return all(result)
 
 
 class Has(Criteria):
-    def __init__(self, *args: Criteria | Type[Component] | Component, **kwargs):
+    """
+    A sugar criteria whom can regroup all criteria.
+
+    Args:
+        Criteria: The criteria applied to the entity.
+        Component: The component value of the entity.
+        Type[Component]: The component type of the entity.
+
+    Exemples:
+        Has(HasNotComponent(Spatial), Position, Sprite("hero.png")).meet_criteria(hero)
+
+    Kwargs:
+        id (str): The id of the entity.
+        component (Type[Component]): The component of the entity.
+        components (list[Type[Component]]): The list of component of the entity.
+
+        component__exclude (Type[Component]): The component not in the entity.
+        components__exclude (list[Type[Component]]): The list of component not in the entity.
+        ...: Same as HasValues criteria for the entity.
+
+    Exemples:
+        Has(id="hero").meet_criteria(hero)
+        Has(component=Position).meet_criteria(hero)
+        Has(components=[Position, Sprite]).meet_criteria(hero)
+        Has(component__exclude=Spatial).meet_criteria(hero)
+        Has(components__exclude=[Spatial, Item]).meet_criteria(hero)
+        Has(position__x=50, position__y__in=[10, 30]).meet_criteria(hero)
+    """
+
+    def __init__(self, *args: Criteria | Component | Type[Component], **kwargs):
         self.criteria_list: list[Criteria] = []
 
         # args processing
@@ -231,7 +297,8 @@ class Has(Criteria):
                 self.criteria_list.append(HasNotComponent(criteria))
 
         # components values comparison
-        self.criteria_list.append(HasValues(**kwargs))
+        if len(kwargs):
+            self.criteria_list.append(HasValues(**kwargs))
 
     def meet_criteria(self, entity: Entity) -> bool:
         return all(criteria.meet_criteria(entity) for criteria in self.criteria_list)

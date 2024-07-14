@@ -1,12 +1,9 @@
-import copy
-
-from ecs import Entity
+from ecs import *
 from test import *
 
 
-def test_basics(entity_hero: Entity):
+def test_basics(hero: Entity, logo: Entity, chest: Entity):
     "check entity basics"
-    hero = entity_hero
 
     assert hero.id == "hero"
     assert str(hero) == "hero"
@@ -14,32 +11,25 @@ def test_basics(entity_hero: Entity):
         repr(hero)
         == "Entity(hero) : {'position': Position(x=50, y=20), 'sprite': Sprite(texture='hero.png', scale=1.0, rotation=0.0)}"
     )
+    assert hero != "hero"
+    assert repr(chest) == "Entity(chest) => [Entity(gold) : {'item': Item(type='coin', quantity=250, rarity=1)}]"
 
 
-def test_has_components(entity_hero: Entity):
-    "check if entity has components with has() method"
-    hero = entity_hero
+def test_has_components(hero: Entity):
+    """Check entity.has() function."""
 
     assert hero.has(Position)
     assert hero.has(Sprite)
     assert not hero.has(Spatial)
 
 
-def test_shallow_copy(entity_hero: Entity):
-    "check if entity copy works"
-    hero = entity_hero
+def test_add_component(hero: Entity):
+    """Check entity.add() function."""
+    hero.add(Item("living", 1, 10))
 
-    hero_copy = copy.copy(hero)
-    assert hero_copy.id == hero.id
-    assert hero_copy != hero
-    assert not hero_copy.has(Position)
+    assert hero.has(Item)
 
 
-def test_deep_copy(entity_hero: Entity):
-    "check if entity deepcopy works"
-    hero = entity_hero
-
-    hero_copy = copy.deepcopy(hero)
-    assert hero_copy.id == hero.id
-    assert hero_copy == hero
-    assert hero_copy.has(Position)
+def test_get_component(hero: Entity):
+    """Check entity.get() function."""
+    assert hero.get(Position) == Position(50, 20)
