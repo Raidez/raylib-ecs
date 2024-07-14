@@ -2,6 +2,7 @@ import copy
 
 from pyray import (
     RAYWHITE,
+    Color,
     Vector2,
     begin_drawing,
     clear_background,
@@ -20,16 +21,20 @@ from systems import load_resources, render_sprites, unload_resources
 WIDTH, HEIGHT = 800, 450
 init_window(WIDTH, HEIGHT, "raylib [core] example - basic window")
 set_target_fps(60)
+BACKGROUND_COLOR = Color(*RAYWHITE)
 
 world = Entity(
-    "world", [], [
+    "world",
+    [],
+    [
         scarfy := Entity(
-            "scarfy", [
+            "scarfy",
+            [
                 Transform(Vector2(WIDTH / 2, HEIGHT / 2), scale=Vector2(0.5, 0.5)),
                 Sprite("assets/scarfy.png", centered=True),
-            ]
+            ],
         ),
-    ]
+    ],
 )
 query = Query(world)
 
@@ -61,7 +66,7 @@ while not window_should_close():
 
     # render
     begin_drawing()
-    clear_background(RAYWHITE)  # type: ignore
+    clear_background(BACKGROUND_COLOR)
     render_sprites(query)
     end_drawing()
 

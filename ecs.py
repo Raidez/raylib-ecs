@@ -1,21 +1,28 @@
 from __future__ import annotations
+
 import copy
-from collections import deque
 from abc import ABC, abstractmethod
+from collections import deque
 from typing import Any, Optional, Type, TypeVar
+
 
 ############################# abstraction #############################
 class Component(ABC): ...
+
 
 class Criteria(ABC):
     @abstractmethod
     def meet_criteria(self, entity: Entity) -> bool: ...
 
+
 ############################# concrete class #############################
-C = TypeVar('C', bound=Component)
+C = TypeVar("C", bound=Component)
+
 
 class Entity:
-    def __init__(self, id: str, components: list[Component] = [], entities: list[Entity] = []):
+    def __init__(
+        self, id: str, components: list[Component] = [], entities: list[Entity] = []
+    ):
         self.id = id
         self.is_active = True
         self._components: dict[str, Component] = {}
@@ -66,6 +73,7 @@ class Entity:
             E.entities.append(copy.deepcopy(entity))
         return E
 
+
 class Query:
     def __init__(self, context: Entity):
         self.context = context
@@ -113,6 +121,7 @@ class Query:
 
         return output
 
+
 ############################# criterias definition #############################
 class HasId(Criteria):
     def __init__(self, id: str):
@@ -121,12 +130,14 @@ class HasId(Criteria):
     def meet_criteria(self, entity: Entity) -> bool:
         return entity.id == self.id
 
+
 class HasComponent(Criteria):
     def __init__(self, component_type: Type[Component]):
         self.component_type = component_type
 
     def meet_criteria(self, entity: Entity) -> bool:
         return entity.has(self.component_type)
+
 
 class HasNotComponent(Criteria):
     def __init__(self, component_type: Type[Component]):
@@ -135,12 +146,14 @@ class HasNotComponent(Criteria):
     def meet_criteria(self, entity: Entity) -> bool:
         return not entity.has(self.component_type)
 
+
 class HasValue(Criteria):
     def __init__(self, component_value: Component):
         self.component_value = component_value
 
     def meet_criteria(self, entity: Entity) -> bool:
         return entity.get(type(self.component_value)) == self.component_value
+
 
 class HasValues(Criteria):
     OPERATOR_LIST = ["eq", "ne", "lt", "gt", "lte", "gte", "in"]
@@ -152,7 +165,9 @@ class HasValues(Criteria):
 
             if operator not in self.OPERATOR_LIST:
                 operator = "eq"
-            self.criteria_list.append((component_name, data_name, operator, expected_value))
+            self.criteria_list.append(
+                (component_name, data_name, operator, expected_value)
+            )
 
     def meet_criteria(self, entity: Entity) -> bool:
         result = []
@@ -174,11 +189,14 @@ class HasValues(Criteria):
                     case "gte":
                         result.append(actual_value >= expected_value)
                     case "in":
-                        result.append(expected_value[0] <= actual_value <= expected_value[1])
+                        result.append(
+                            expected_value[0] <= actual_value <= expected_value[1]
+                        )
                     case _:
                         result.append(False)
 
         return all(result)
+
 
 class Has(Criteria):
     def __init__(self, *args, **kwargs):
@@ -207,7 +225,9 @@ class Has(Criteria):
         if criteria := kwargs.pop("component__exclude", None):
             self.criteria_list.append(HasNotComponent(criteria))
 
-        if (criterias := kwargs.pop("components__exclude", None)) and isinstance(criteria, list):
+        if (criterias := kwargs.pop("components__exclude", None)) and isinstance(
+            criteria, list
+        ):
             for criteria in criterias:
                 self.criteria_list.append(HasNotComponent(criteria))
 

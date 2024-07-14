@@ -1,10 +1,12 @@
 import pyray
-from ecs import *
+from ecs import Component
 from typing import Optional, TypeAlias
 from dataclasses import dataclass, field
 
+
 Color: TypeAlias = pyray.Color
 Texture: TypeAlias = pyray.Texture
+
 
 @dataclass
 class Transform(Component):

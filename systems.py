@@ -1,6 +1,8 @@
-from ecs import *
-from components import *
 from pyray import Rectangle, Vector2, draw_texture_pro, load_texture, unload_texture
+
+from components import Sprite, Transform
+from ecs import Entity, HasComponent, Query
+
 
 def load_resources(query: Query):
     entity_list = query.filter([HasComponent(Sprite)])

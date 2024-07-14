@@ -1,4 +1,4 @@
-from ecs import *
+from ecs import Entity, HasComponent, HasId, Query
 from test import *
 
 
@@ -9,7 +9,9 @@ def test_found_by_id(basic_context: Query, entity_hero: Entity):
     assert query.get([HasId("hero")]) == hero
 
 
-def test_found_by_criteria(basic_context: Query, entity_hero: Entity, entity_logo: Entity):
+def test_found_by_criteria(
+    basic_context: Query, entity_hero: Entity, entity_logo: Entity
+):
     "check founded entities by criteria"
     query, hero, logo = basic_context, entity_hero, entity_logo
 

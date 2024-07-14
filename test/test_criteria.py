@@ -1,4 +1,4 @@
-from ecs import *
+from ecs import Entity, Has, HasComponent, HasId, HasNotComponent, HasValue, HasValues
 from test import *
 
 

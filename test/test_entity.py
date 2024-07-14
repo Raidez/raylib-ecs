@@ -1,5 +1,6 @@
 import copy
-from ecs import *
+
+from ecs import Entity
 from test import *
 
 
