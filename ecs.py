@@ -1,5 +1,6 @@
 from __future__ import annotations
 import copy
+from collections import deque
 from abc import ABC, abstractmethod
 from typing import Any, Optional, Type, TypeVar
 
@@ -33,6 +34,15 @@ class Entity:
         return self._components[component_type.__name__.lower()]
 
     # for debugging
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Entity):
+            return (
+                self.id == other.id
+                and self._components == other._components
+                and self.entities == other.entities
+            )
+        return False
+
     def __str__(self) -> str:
         return self.id
 
@@ -74,7 +84,6 @@ class Query:
 
         entities.reverse()
 
-        output = []
         for entity in entities:
             # check if entity meet all criteria
             if all([criteria.meet_criteria(entity) for criteria in criteria_list]):
@@ -87,16 +96,14 @@ class Query:
 
         # get all entities in tree
         entities = []
-        stack = self.context.entities[:]
+        stack = deque(self.context.entities[:])
         while stack:
-            current = stack.pop()
+            current = stack.popleft()
 
             if len(current.entities):
                 stack.extend(current.entities)
 
             entities.append(current)
-
-        entities.reverse()
 
         output = []
         for entity in entities:

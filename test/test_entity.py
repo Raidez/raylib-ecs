@@ -8,7 +8,7 @@ def test_basics(entity_hero: Entity):
     hero = entity_hero
 
     assert hero.id == "hero"
-    assert str(hero) == "Entity(hero)"
+    assert str(hero) == "hero"
     assert (
         repr(hero)
         == "Entity(hero) : {'position': Position(x=50, y=20), 'sprite': Sprite(texture='hero.png', scale=1.0, rotation=0.0)}"
