@@ -26,6 +26,7 @@ class Group(Component):
 
 C = TypeVar("C", bound=Component)
 
+
 class Entity:
     """
     Represents an entity in the ECS system.
@@ -63,10 +64,10 @@ class Entity:
     def get(self, component_type: Type[C]) -> C:
         """Return the specified component."""
         return self._components[component_type._get_id()]
-    
+
     def clone(self, new_id: str) -> Entity:
         """Return a clone of the entity."""
-        return Entity(new_id, self._components.values(), self.entities)
+        return Entity(new_id, list(self._components.values()), self.entities)
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Entity):
@@ -151,6 +152,7 @@ class Query:
 ############################# criterias definition #############################
 class HasId(Criteria):
     """A criteria that checks if an entity has the id."""
+
     def __init__(self, id: str):
         self.id = id
 
@@ -160,15 +162,17 @@ class HasId(Criteria):
 
 class HasGroup(Criteria):
     """A criteria that checks if an entity has the group."""
+
     def __init__(self, group_name: str):
         self.group_name = group_name
-    
+
     def meet_criteria(self, entity: Entity) -> bool:
         return entity.get(Group).name == self.group_name
 
 
 class HasComponent(Criteria):
     """A criteria that checks if an entity has the component."""
+
     def __init__(self, component_type: Type[Component]):
         self.component_type = component_type
 
@@ -178,6 +182,7 @@ class HasComponent(Criteria):
 
 class HasNotComponent(Criteria):
     """A criteria that checks if an entity doesn't have the component."""
+
     def __init__(self, component_type: Type[Component]):
         self.component_type = component_type
 
@@ -187,6 +192,7 @@ class HasNotComponent(Criteria):
 
 class HasValue(Criteria):
     """A criteria that checks if an entity has a component with specified value."""
+
     def __init__(self, component_value: Component):
         self.component_value = component_value
 
@@ -307,14 +313,18 @@ class Has(Criteria):
         if (criteria := kwargs.pop("group", None)) and isinstance(criteria, str):
             self.criteria_list.append(HasGroup(criteria))
 
-        if (criteria := kwargs.pop("component", None)) and isinstance(criteria, type(Component)):
+        if (criteria := kwargs.pop("component", None)) and isinstance(
+            criteria, type(Component)
+        ):
             self.criteria_list.append(HasComponent(criteria))
 
         for criteria in kwargs.pop("components", []):
             if isinstance(criteria, type(Component)):
                 self.criteria_list.append(HasComponent(criteria))
 
-        if (criteria := kwargs.pop("component__exclude", None)) and isinstance(criteria, type(Component)):
+        if (criteria := kwargs.pop("component__exclude", None)) and isinstance(
+            criteria, type(Component)
+        ):
             self.criteria_list.append(HasNotComponent(criteria))
 
         for criteria in kwargs.pop("components__exclude", []):

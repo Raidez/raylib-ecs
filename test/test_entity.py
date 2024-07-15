@@ -3,7 +3,7 @@ from test import *
 
 
 def test_basics(hero: Entity, logo: Entity, chest: Entity):
-    "check entity basics"
+    """Check entity basics."""
 
     assert hero.id == "hero"
     assert repr(hero) == "hero"
@@ -37,16 +37,24 @@ def test_get_component(hero: Entity):
 
 def test_multi_component_with_same_name():
     """Check if the entity can have multiple components with the same name."""
+
     @dataclass
     class Gold(Component):
         __id = "gold"
-    
+
     @dataclass
     class gold(Component):
         __id = "gold_as_item"
-    
+
     sack = Entity("sack", [Gold(), gold()])
 
     assert len(sack._components) == 2
     assert sack.get(Gold) == Gold()
     assert sack.get(gold) == gold()
+
+
+def test_clone(hero: Entity):
+    """Check if the clone() works correctly."""
+    hero_clone = hero.clone("hero")
+
+    assert hero_clone == hero

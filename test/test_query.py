@@ -16,7 +16,7 @@ def test_get_only_active(basic_context: Query):
     if chest := query.get([HasId("chest")]):
         chest.is_active = False
 
-    assert query.get([HasId("chest")]) == None
+    assert query.get([HasId("chest")]) is None
 
 
 def test_found_all(basic_context: Query, hero: Entity, logo: Entity, chest: Entity):
@@ -45,9 +45,7 @@ def test_found_by_id(basic_context: Query, hero: Entity):
     assert query.get([HasId("hero")]) == hero
 
 
-def test_found_by_criteria(
-    basic_context: Query, hero: Entity, logo: Entity
-):
+def test_found_by_criteria(basic_context: Query, hero: Entity, logo: Entity):
     """Check founded entities by criteria."""
     query = basic_context
 

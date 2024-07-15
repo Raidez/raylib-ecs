@@ -3,7 +3,7 @@ from typing import Optional
 
 import pytest
 
-from ecs import Component, Entity, Query
+from ecs import Component, Entity, Group, Query
 
 
 @dataclass
@@ -40,7 +40,7 @@ def basic_context() -> Query:
         "context",
         [],
         [
-            Entity("logo", [Position(10, 10)]),
+            Entity("logo", [Position(10, 10), Group("icons")]),
             Entity("hero", [Position(50, 20), Sprite("hero.png")]),
             Entity("chest", [], [
                 Entity("gold", [Item("coin", 250, 1)])

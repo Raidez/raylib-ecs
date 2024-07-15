@@ -4,6 +4,7 @@ from test import *
 
 def test_custom_criteria(hero: Entity):
     """Check if entity meet criteria with custom."""
+
     class IsHeroCriteria(Criteria):
         def meet_criteria(self, entity: Entity) -> bool:
             return entity.id == "hero"
@@ -17,11 +18,18 @@ def test_id_criteria(hero: Entity):
     assert HasId("hero").meet_criteria(hero)
 
 
+def test_group_criteria(logo: Entity):
+    """Check if entity meet criteria with HasGroup."""
+
+    assert HasGroup("icons").meet_criteria(logo)
+
+
 def test_has_component_criteria(hero: Entity):
     """Check if entity meet criteria with HasComponent."""
 
     assert HasComponent(Position).meet_criteria(hero)
     assert HasComponent(Sprite).meet_criteria(hero)
+
 
 def test_has_not_component_criteria(hero: Entity):
     """Check if entity meet criteria with HasNotComponent."""
@@ -55,15 +63,20 @@ def test_has_multiple_values_criteria(hero: Entity):
     assert HasValues(position__x__lte=50, position__y__lte=80).meet_criteria(hero)
     assert HasValues(position__x__gt=49, position__y__gt=19).meet_criteria(hero)
     assert HasValues(position__x__gte=20, position__y__gte=10).meet_criteria(hero)
-    assert HasValues(position__x__in=[20, 100], position__y__in=[10, 80]).meet_criteria(hero)
+    assert HasValues(position__x__in=[20, 100], position__y__in=[10, 80]).meet_criteria(
+        hero
+    )
 
 
-def test_has_criteria(hero: Entity):
+def test_has_criteria(hero: Entity, logo: Entity):
     """Check if entity meet criteria with Has."""
 
-    assert Has(HasNotComponent(Spatial), Position, Sprite("hero.png")).meet_criteria(hero)
+    assert Has(HasNotComponent(Spatial), Position, Sprite("hero.png")).meet_criteria(
+        hero
+    )
 
     assert Has(id="hero").meet_criteria(hero)
+    assert Has(group="icons").meet_criteria(logo)
     assert Has(component=Position).meet_criteria(hero)
     assert Has(components=[Position, Sprite]).meet_criteria(hero)
     assert Has(component__exclude=Spatial).meet_criteria(hero)
