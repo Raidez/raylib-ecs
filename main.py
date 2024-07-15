@@ -1,5 +1,3 @@
-import copy
-
 from pyray import (
     RAYWHITE,
     Color,
@@ -15,7 +13,7 @@ from pyray import (
 )
 
 from components import Sprite, Transform
-from ecs import Entity, HasComponent, HasId, Query
+from ecs import Entity, Has, Query, Group
 from systems import load_resources, render_sprites, unload_resources
 
 WIDTH, HEIGHT = 800, 450
@@ -28,29 +26,30 @@ world = Entity(
     [],
     [
         scarfy := Entity(
-            "scarfy",
+            "scarfy0",
             [
                 Transform(Vector2(WIDTH / 2, HEIGHT / 2), scale=Vector2(0.5, 0.5)),
                 Sprite("assets/scarfy.png", centered=True),
+                Group("scarfies"),
             ],
         ),
     ],
 )
 query = Query(world)
 
-# scarfy1 = copy.deepcopy(scarfy)
-# scarfy2 = copy.deepcopy(scarfy)
-# world.entities.extend([scarfy1, scarfy2])
+scarfy1 = scarfy.clone("scarfy1")
+scarfy2 = scarfy.clone("scarfy2")
+world.entities.extend([scarfy1, scarfy2])
 
-# scarfy1.add(Transform(Vector2(100, 100), scale=Vector2(0.2, 0.2), rotation=45))
-# scarfy2.add(Transform(Vector2(600, 250), scale=Vector2(0.8, 0.8), rotation=-90))
-# scarfy2.get(Sprite).z_index = -5
+scarfy1.add(Transform(Vector2(100, 100), scale=Vector2(0.2, 0.2), rotation=45))
+scarfy2.add(Transform(Vector2(600, 250), scale=Vector2(0.8, 0.8), rotation=-90))
+scarfy2.get(Sprite).z_index = -5
 
 ################################################################################
 
 
 def update_scarfy(query: Query, delta: float):
-    entity_list = query.filter([HasId("scarfy"), HasComponent(Transform)])
+    entity_list = query.filter([Has(group="scarfies", component=Transform)])
     for entity in entity_list:
         entity.get(Transform).rotation += 10.0 * delta
 

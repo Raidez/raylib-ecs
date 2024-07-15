@@ -2,11 +2,15 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections import deque
+from dataclasses import dataclass
 from typing import Any, Optional, Type, TypeVar
 
 
 ############################# abstraction #############################
-class Component(ABC): ...
+class Component(ABC):
+    @classmethod
+    def _get_id(cls) -> str:
+        return getattr(cls, f"_{cls.__name__}__id", cls.__name__.lower())
 
 
 class Criteria(ABC):
@@ -15,8 +19,12 @@ class Criteria(ABC):
 
 
 ############################# concrete class #############################
-C = TypeVar("C", bound=Component)
+@dataclass
+class Group(Component):
+    name: str
 
+
+C = TypeVar("C", bound=Component)
 
 class Entity:
     """
@@ -42,21 +50,24 @@ class Entity:
 
     def add(self, component: Component):
         """Add/replace component in the entity."""
-        self._components[type(component).__name__.lower()] = component
+        self._components[component._get_id()] = component
 
     def has(self, component_type: Type[C]) -> bool:
         """Check if the entity has the specified component."""
         for component_name in self._components:
-            if component_name == component_type.__name__.lower():
+            if component_name == component_type._get_id():
                 return True
 
         return False
 
     def get(self, component_type: Type[C]) -> C:
         """Return the specified component."""
-        return self._components[component_type.__name__.lower()]
+        return self._components[component_type._get_id()]
+    
+    def clone(self, new_id: str) -> Entity:
+        """Return a clone of the entity."""
+        return Entity(new_id, self._components.values(), self.entities)
 
-    # for debugging
     def __eq__(self, other) -> bool:
         if isinstance(other, Entity):
             return (
@@ -66,16 +77,17 @@ class Entity:
             )
         return False
 
+    # for debugging
     def __str__(self) -> str:
-        return self.id
-
-    def __repr__(self) -> str:
         s = f"Entity({self.id})"
         if self._components:
             s += f" : {self._components}"
         if self.entities:
             s += f" => {self.entities}"
         return s
+
+    def __repr__(self) -> str:
+        return self.id
 
 
 class Query:
@@ -146,6 +158,15 @@ class HasId(Criteria):
         return entity.id == self.id
 
 
+class HasGroup(Criteria):
+    """A criteria that checks if an entity has the group."""
+    def __init__(self, group_name: str):
+        self.group_name = group_name
+    
+    def meet_criteria(self, entity: Entity) -> bool:
+        return entity.get(Group).name == self.group_name
+
+
 class HasComponent(Criteria):
     """A criteria that checks if an entity has the component."""
     def __init__(self, component_type: Type[Component]):
@@ -185,7 +206,7 @@ class HasValues(Criteria):
         And the kwargs value is the comparison.
 
     Exemples:
-        Has(position=Position(50, 20), position__x=50, position__y__in=[10, 30]).meet_criteria(hero)
+        HasValues(position=Position(50, 20), position__x=50, position__y__in=[10, 30]).meet_criteria(hero)
     """
 
     OPERATOR_LIST = ["eq", "ne", "lt", "gt", "lte", "gte", "in"]
@@ -258,6 +279,7 @@ class Has(Criteria):
 
     Exemples:
         Has(id="hero").meet_criteria(hero)
+        Has(group="adventurers").meet_criteria(hero)
         Has(component=Position).meet_criteria(hero)
         Has(components=[Position, Sprite]).meet_criteria(hero)
         Has(component__exclude=Spatial).meet_criteria(hero)
@@ -281,6 +303,9 @@ class Has(Criteria):
         # kwargs processing
         if (criteria := kwargs.pop("id", None)) and isinstance(criteria, str):
             self.criteria_list.append(HasId(criteria))
+
+        if (criteria := kwargs.pop("group", None)) and isinstance(criteria, str):
+            self.criteria_list.append(HasGroup(criteria))
 
         if (criteria := kwargs.pop("component", None)) and isinstance(criteria, type(Component)):
             self.criteria_list.append(HasComponent(criteria))
