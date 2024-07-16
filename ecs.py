@@ -63,7 +63,7 @@ class Entity:
 
     def get(self, component_type: Type[C]) -> C:
         """Return the specified component."""
-        return self._components[component_type._get_id()]
+        return self._components.get(component_type._get_id())
 
     def clone(self, new_id: str) -> Entity:
         """Return a clone of the entity."""
@@ -94,6 +94,10 @@ class Entity:
 class Query:
     def __init__(self, context: Entity):
         self.context = context
+
+    def append(self, entity: Entity):
+        """Append an entity to the current context."""
+        self.context.entities.append(entity)
 
     def get(self, criteria_list: list[Criteria] = []) -> Optional[Entity]:
         """Get the first entity whom meet criteria in the tree context."""
@@ -167,6 +171,9 @@ class HasGroup(Criteria):
         self.group_name = group_name
 
     def meet_criteria(self, entity: Entity) -> bool:
+        if not entity.has(Group):
+            return False
+
         return entity.get(Group).name == self.group_name
 
 
@@ -238,7 +245,7 @@ class HasValues(Criteria):
 
         result = []
         for component_name, data_name, operator, expected_value in self.criteria_list:
-            if component := entity._components[component_name.lower()]:
+            if component := entity._components.get(component_name):
                 actual_value = getattr(component, data_name, component)
 
                 match operator:
