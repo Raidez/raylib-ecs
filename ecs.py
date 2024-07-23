@@ -266,7 +266,10 @@ class HasValues(Criteria):
                             expected_value[0] <= actual_value <= expected_value[1]
                         )
 
-        return all(result)
+        if len(result):
+            return all(result)
+        
+        return False
 
 
 class Has(Criteria):
